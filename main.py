@@ -112,13 +112,14 @@ class ground():
 ########################
 
 class rigid_link():
-    def __init__(self, name, p1, p2, color, k=1000):
+    def __init__(self, name, p1, p2, color, k=1000, b=0):
         self.name = name
         self.p1 = p1
         self.p2 = p2
         self.dist = get_dist_between(p1, p2)
         # spring coefficient
         self.k = k
+        self.b = b
         self.color = color
 
     def get_k(self):
@@ -142,6 +143,12 @@ class rigid_link():
                 get_dist_between(self.p1, self.p2) - self.dist))
             self.p2.apply_force(self.p2.get_unit_vector_towards(self.p1) * -self.k * abs(
                 get_dist_between(self.p1, self.p2) - self.dist))
+
+        # damping
+        if not self.b == 0:
+            rel_outvel = (self.p2.vel - self.p1.vel) - (self.p2.pos - self.p1.pos) * (self.p2.vel - self.p1.vel).dot((self.p2.pos - self.p1.pos).normalized())
+            self.p2.apply_force(self.p2.get_unit_vector_towards(self.p1) * rel_outvel.mag() * self.b)
+            self.p1.apply_force(self.p2.get_unit_vector_towards(self.p1) * rel_outvel.mag() * -self.b)
 
     def get_midpoint(self):
         return (self.p1.get_pos() + self.p2.get_pos()) / 2
@@ -630,18 +637,20 @@ root.bind("<Control_L>", zoom_current_cam_out)
 root.bind("<Shift_L>", zoom_current_cam_in)
 
 # rocket
-K_gimbal = 10
-K_angvel = 0.3
-max_target_angvel = 0.2
+K_gimbal = 35
+K_angvel = 1e-2
+max_target_angvel = 0.5
 K_orient = 1
 
 rocket_mass = 500
 payload_mass = 20
 rocket_length = 70
 rocket_rigidity = 15e6
+rocket_damping = 1e-4
 pt_mass = rocket_mass / 14
 propellant_mass = 5000
-antislosh = 15000
+propellant_bumparoundability = 15e4
+propellant_sloshcosity = 50
 
 p00 = point("p00", vec2(-2, 0), vec2(), "seagreen", pt_mass)
 p01 = point("p01", vec2(-2, 15), vec2(), "seagreen", pt_mass)
@@ -666,64 +675,64 @@ p15 = point("p15", vec2(0, 70), vec2(), "seagreen", pt_mass)
 
 pt = point("pt", vec2(0,0), vec2(), "seagreen", pt_mass)
 
-s01 = rigid_link("s0", p00, pt, "skyblue", rocket_rigidity)
-s02 = rigid_link("s0", p20, pt, "skyblue", rocket_rigidity)
-s03 = rigid_link("s0", p01, pt, "skyblue", rocket_rigidity)
-s04 = rigid_link("s0", p21, pt, "skyblue", rocket_rigidity)
-s1 = rigid_link("s1", p01, p21, "skyblue", rocket_rigidity)
-s2 = rigid_link("s2", p02, p22, "skyblue", rocket_rigidity)
-s3 = rigid_link("s3", p03, p23, "skyblue", rocket_rigidity)
-s4 = rigid_link("s4", p04, p24, "skyblue", rocket_rigidity)
+s01 = rigid_link("s0", p00, pt, "skyblue", rocket_rigidity, rocket_damping)
+s02 = rigid_link("s0", p20, pt, "skyblue", rocket_rigidity, rocket_damping)
+s03 = rigid_link("s0", p01, pt, "skyblue", rocket_rigidity, rocket_damping)
+s04 = rigid_link("s0", p21, pt, "skyblue", rocket_rigidity, rocket_damping)
+s1 = rigid_link("s1", p01, p21, "skyblue", rocket_rigidity, rocket_damping)
+s2 = rigid_link("s2", p02, p22, "skyblue", rocket_rigidity, rocket_damping)
+s3 = rigid_link("s3", p03, p23, "skyblue", rocket_rigidity, rocket_damping)
+s4 = rigid_link("s4", p04, p24, "skyblue", rocket_rigidity, rocket_damping)
 
-v1 = rigid_link("v1", p00, p01, "skyblue", rocket_rigidity)
-v2 = rigid_link("v2", p01, p02, "skyblue", rocket_rigidity)
-v3 = rigid_link("v3", p02, p03, "skyblue", rocket_rigidity)
-v4 = rigid_link("v4", p03, p04, "skyblue", rocket_rigidity)
-v5 = rigid_link("v5", p04, p05, "skyblue", rocket_rigidity)
-v6 = rigid_link("v6", p20, p21, "skyblue", rocket_rigidity)
-v7 = rigid_link("v7", p21, p22, "skyblue", rocket_rigidity)
-v8 = rigid_link("v8", p22, p23, "skyblue", rocket_rigidity)
-v9 = rigid_link("v9", p23, p24, "skyblue", rocket_rigidity)
-v10 = rigid_link("v10", p24, p25, "skyblue", rocket_rigidity)
+v1 = rigid_link("v1", p00, p01, "skyblue", rocket_rigidity, rocket_damping)
+v2 = rigid_link("v2", p01, p02, "skyblue", rocket_rigidity, rocket_damping)
+v3 = rigid_link("v3", p02, p03, "skyblue", rocket_rigidity, rocket_damping)
+v4 = rigid_link("v4", p03, p04, "skyblue", rocket_rigidity, rocket_damping)
+v5 = rigid_link("v5", p04, p05, "skyblue", rocket_rigidity, rocket_damping)
+v6 = rigid_link("v6", p20, p21, "skyblue", rocket_rigidity, rocket_damping)
+v7 = rigid_link("v7", p21, p22, "skyblue", rocket_rigidity, rocket_damping)
+v8 = rigid_link("v8", p22, p23, "skyblue", rocket_rigidity, rocket_damping)
+v9 = rigid_link("v9", p23, p24, "skyblue", rocket_rigidity, rocket_damping)
+v10 = rigid_link("v10", p24, p25, "skyblue", rocket_rigidity, rocket_damping)
 
-tip1 = rigid_link("tip1", p05, p15, "skyblue", rocket_rigidity)
-tip2 = rigid_link("tip2", p15, p25, "skyblue", rocket_rigidity)
-tip3 = rigid_link("tip3", p05, p25, "skyblue", rocket_rigidity)
+tip1 = rigid_link("tip1", p05, p15, "skyblue", rocket_rigidity, rocket_damping)
+tip2 = rigid_link("tip2", p15, p25, "skyblue", rocket_rigidity, rocket_damping)
+tip3 = rigid_link("tip3", p05, p25, "skyblue", rocket_rigidity, rocket_damping)
 
-adapter1 = rigid_link("adapter1", p04, p14, "skyblue", rocket_rigidity)
-adapter2 = rigid_link("adapter1", p24, p14, "skyblue", rocket_rigidity)
+adapter1 = rigid_link("adapter1", p04, p14, "skyblue", rocket_rigidity, rocket_damping)
+adapter2 = rigid_link("adapter1", p24, p14, "skyblue", rocket_rigidity, rocket_damping)
 
-c1 = rigid_link("c1", p00, p21, "skyblue", rocket_rigidity)
-c2 = rigid_link("c2", p01, p22, "skyblue", rocket_rigidity)
-c3 = rigid_link("c3", p02, p23, "skyblue", rocket_rigidity)
-c4 = rigid_link("c4", p03, p24, "skyblue", rocket_rigidity)
-c5 = rigid_link("c1", p04, p25, "skyblue", rocket_rigidity)
+c1 = rigid_link("c1", p00, p21, "skyblue", rocket_rigidity, rocket_damping)
+c2 = rigid_link("c2", p01, p22, "skyblue", rocket_rigidity, rocket_damping)
+c3 = rigid_link("c3", p02, p23, "skyblue", rocket_rigidity, rocket_damping)
+c4 = rigid_link("c4", p03, p24, "skyblue", rocket_rigidity, rocket_damping)
+c5 = rigid_link("c1", p04, p25, "skyblue", rocket_rigidity, rocket_damping)
 
-c6 = rigid_link("c6", p01, p20, "skyblue", rocket_rigidity)
-c7 = rigid_link("c7", p02, p21, "skyblue", rocket_rigidity)
-c8 = rigid_link("c8", p03, p22, "skyblue", rocket_rigidity)
-c9 = rigid_link("c9", p04, p23, "skyblue", rocket_rigidity)
-c10 = rigid_link("c10", p05, p24, "skyblue", rocket_rigidity)
+c6 = rigid_link("c6", p01, p20, "skyblue", rocket_rigidity, rocket_damping)
+c7 = rigid_link("c7", p02, p21, "skyblue", rocket_rigidity, rocket_damping)
+c8 = rigid_link("c8", p03, p22, "skyblue", rocket_rigidity, rocket_damping)
+c9 = rigid_link("c9", p04, p23, "skyblue", rocket_rigidity, rocket_damping)
+c10 = rigid_link("c10", p05, p24, "skyblue", rocket_rigidity, rocket_damping)
 
-pl01 = rigid_link("pl01", p00, p10, "orange", antislosh)
-pl02 = rigid_link("pl02", p20, p10, "orange", antislosh)
-pl03 = rigid_link("pl03", p21, p10, "orange", antislosh)
-pl04 = rigid_link("pl04", p01, p10, "orange", antislosh)
+pl01 = rigid_link("pl01", p00, p10, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl02 = rigid_link("pl02", p20, p10, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl03 = rigid_link("pl03", p21, p10, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl04 = rigid_link("pl04", p01, p10, "orange", propellant_bumparoundability, propellant_sloshcosity)
 
-pl11 = rigid_link("pl11", p01, p11, "orange", antislosh)
-pl12 = rigid_link("pl12", p21, p11, "orange", antislosh)
-pl13 = rigid_link("pl13", p22, p11, "orange", antislosh)
-pl14 = rigid_link("pl14", p02, p11, "orange", antislosh)
+pl11 = rigid_link("pl11", p01, p11, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl12 = rigid_link("pl12", p21, p11, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl13 = rigid_link("pl13", p22, p11, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl14 = rigid_link("pl14", p02, p11, "orange", propellant_bumparoundability, propellant_sloshcosity)
 
-pl21 = rigid_link("pl21", p02, p12, "orange", antislosh)
-pl22 = rigid_link("pl22", p22, p12, "orange", antislosh)
-pl23 = rigid_link("pl23", p23, p12, "orange", antislosh)
-pl24 = rigid_link("pl24", p03, p12, "orange", antislosh)
+pl21 = rigid_link("pl21", p02, p12, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl22 = rigid_link("pl22", p22, p12, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl23 = rigid_link("pl23", p23, p12, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl24 = rigid_link("pl24", p03, p12, "orange", propellant_bumparoundability, propellant_sloshcosity)
 
-pl31 = rigid_link("pl31", p03, p13, "orange", antislosh)
-pl32 = rigid_link("pl32", p23, p13, "orange", antislosh)
-pl33 = rigid_link("pl33", p24, p13, "orange", antislosh)
-pl34 = rigid_link("pl34", p04, p13, "orange", antislosh)
+pl31 = rigid_link("pl31", p03, p13, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl32 = rigid_link("pl32", p23, p13, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl33 = rigid_link("pl33", p24, p13, "orange", propellant_bumparoundability, propellant_sloshcosity)
+pl34 = rigid_link("pl34", p04, p13, "orange", propellant_bumparoundability, propellant_sloshcosity)
 
 f1 = thrust((rocket_mass + propellant_mass) * 30, pt, p15, 0, 25)
 
@@ -752,6 +761,7 @@ force_buffer = []
 linking_buffer = []
 calc_com_buffer = []
 sim_time = 0
+cycle = 0
 
 while True:
 
@@ -788,14 +798,14 @@ while True:
     # TVC
     t = f1
 
-    if t.origin.pos.y > 500:
-        desired_flight_angle = 25
-    elif t.origin.pos.y > 1000:
-        desired_flight_angle = 45
-    elif t.origin.pos.y > 2500:
-        desired_flight_angle = 60
-    else:
+    if t.origin.pos.y < 500:
         desired_flight_angle = 10
+    elif t.origin.pos.y < 1500:
+        desired_flight_angle = 25
+    elif t.origin.pos.y < 5000:
+        desired_flight_angle = 45
+    else:
+        desired_flight_angle = 60
 
     tip_rvel = t.p2.vel - t.origin.vel
     tip_rpos = t.p2.pos - t.origin.pos
@@ -813,9 +823,11 @@ while True:
 
     desired_dir = vec2(0, 1).rotated(math.radians(desired_flight_angle)).normalized()
     current_dir = (t.p2.pos - t.origin.pos).normalized()
-    current_angle = math.atan2(current_dir.x, current_dir.y)
+    current_angle = -math.atan2((t.p2.pos - t.origin.pos).x, (t.p2.pos - t.origin.pos).y)
     correction = (desired_dir - current_dir).normalized()
-    correction_mag = (desired_dir - current_dir).mag()
+    # correction_mag = (desired_dir - current_dir).mag()
+
+    correction_mag = desired_flight_angle - math.degrees(current_angle)
 
     if correction.x > 0:
         if correction.y > 0:
@@ -834,7 +846,7 @@ while True:
         target_angvel = max_target_angvel
 
     angvel_error = (angvels - target_angvel) * K_orient
-    target_offset = abs(angvel_error) * sign(angvel_error) * K_gimbal
+    target_offset = angvel_error * K_gimbal
 
     t.move_towards_offset(target_offset, dt)
 
@@ -907,7 +919,7 @@ while True:
             p.update_pos()
 
     tk_canvas.create_text(100, 15, text="Target flight angle: " + str(desired_flight_angle))
-    tk_canvas.create_text(100, 30, text="Current flight angle: " + str(-round(math.degrees(current_angle), 2)))
+    tk_canvas.create_text(100, 30, text="Current flight angle: " + str(round(math.degrees(current_angle), 2)))
     tk_canvas.create_text(100, 45, text="Target angular velocity: " + str(round(target_angvel, 2)))
     tk_canvas.create_text(100, 60, text="Current angular velocity: " + str(round(angvels, 2)))
     tk_canvas.create_text(100, 75, text="Thruster gimbal target: " + str(round(target_offset, 2)))
@@ -939,12 +951,14 @@ while True:
     for c in cameras:
         c.set_pos((f1.origin.pos + f1.p2.pos) * 0.5)
 
-    root.update()
+    if cycle % 10 == 0:
+        root.update()
     tk_canvas.delete("all")
 
     for p in points:
         p.clear_accel()
 
     sim_time += dt
+    cycle += 1
 
 root.mainloop()
